@@ -39,7 +39,7 @@ session_start();
 if( empty($_SESSION['admin_login']) || $_SESSION['admin_login'] !== true ){
 
     // ログインページへリダイレクト
-    header("Location: ./admin.pp");
+    header("Location: ./admin.php");
     exit;
 }
 // データベースに接続
@@ -446,7 +446,7 @@ article.reply::before {
     </div>
     <a class ="btn_cancel" href="admin.php">キャンセル</a>
     <input type="submit" name="btn_submit" value="更新">
-    <input type="hidden" name="message_id" value="<?php if( !empty($message_data['id']) ){ echo $message_data['id']; } elseif( !empty($_POST['message_id'])){echo htmlspecialchars($POST['message_id'], ENT_QUOTES,'UTF-8');} ?>">
+    <input type="hidden" name="message_id" value="<?php if( !empty($message_data['id']) ){ echo $message_data['id']; } elseif( !empty($_POST['message_id'])){echo htmlspecialchars($_POST['message_id'], ENT_QUOTES,'UTF-8');} ?>">
 </form>
 </body>
 </html>

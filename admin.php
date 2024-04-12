@@ -364,7 +364,8 @@ article.reply::before {
  <?php endif; ?>
 <!-- ここにメッセージの入力フォームを設置 -->
 <section>
-
+<!--$_SESSION['admin_login'] が空でなくて、なおかつ$_SESSION['admin_login'])がtrueのとき
+以下のphpが実行され、以下のフォームが表示される -->
 <?php if( !empty($_SESSION['admin_login']) && $_SESSION['admin_login'] === true ): ?>
 
 <form method="get" action="./download.php">

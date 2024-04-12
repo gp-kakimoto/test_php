@@ -109,6 +109,8 @@ if( empty($error_message) ) {
 
 	// メッセージのデータを取得する
 	$sql = "SELECT view_name,message,post_date FROM message ORDER BY post_date DESC";
+
+    //SQLに変数を利用していないので、pdo->query で実行している
 	$message_array = $pdo->query($sql);
 
     //var_dump($message_array);
