@@ -64,6 +64,11 @@ if (!empty($_POST['btn_submit'])){
     // メセージの入力チェック
     if( empty($message)){
         $error_message[] = 'ひと言メッセージを入力してください。';
+    } else {
+        //文字数を確認
+        if(100 < mb_strlen($message, 'UTF-8')){
+            $error_message[] = 'ひと言メッセージは100文字以内で入力してください。';
+        }
     }
    
     if(empty($error_message)){
@@ -422,7 +427,8 @@ article.reply::before {
     </div>
     <div>
         <label for="message">ひと言メッセージ</label>
-        <textarea id="message" name="message"></textarea>
+        <textarea id="message" name="message"><?php if( !empty($message)){ echo
+        htmlspecialchars($message,ENT_QUOTES, 'UTF-8' );} ?></textarea>
     </div>
     <input type="submit" name="btn_submit" value="書き込む">
 </form>
