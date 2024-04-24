@@ -16,12 +16,15 @@ define('DB_NAME','board');
 date_default_timezone_set('Asia/Tokyo');
 
 //変数の初期化
-$current_date = null;
+//$current_date = null;
+$view_name = null;
 $message = array();
+$message_data = null;
 //配列messageを要素として取り扱うための配列(二次元配列のイメージ)
+
 $message_array = array();
 
-$success_message = null;
+//$success_message = null;
 $error_message = array();
 
 //データベースへのアクセスに使う変数たち
@@ -32,6 +35,13 @@ $option = null;
 
 session_start();
 
+//　管理者としてログインしているか確認
+if( empty($_SESSION['admin_login']) || $_SESSION['admin_login'] !== true ){
+
+    // ログインページへリダイレクト
+    header("Location: ./admin.php");
+    exit;
+}
 // データベースに接続
 try{
     $option = array(
@@ -46,89 +56,65 @@ try{
     $error_message[] = $e->getMessage();
 }
 
-if (!empty($_POST['btn_submit'])){
-    //var_dump($_POST);
+if( !empty($_GET['message_id']) && empty($_POST['message_id'])){
+    //投稿を取得するコードが入る
+    //SQL作成
+    $stmt = $pdo->prepare("SELECT * FROM message WHERE id = :id");
 
-    // 空白除去
-    //文字列の先頭に連なる空白改行等の除去と、文末に連なる空白改行等の除去
-    $view_name = preg_replace('/\A[\p{C}\p{Z}]++|[\p{C}\p{Z}]++\z/u', '', $_POST['view_name']);
-    $message = preg_replace( '/\A[\p{C}\p{Z}]++|[\p{C}\p{Z}]++\z/u', '', $_POST['message']);
-    // 表示名の入力チェック
-    if(empty($view_name)){
-        $error_message[] = '表示名を入力してください。';
-    } else {
-        // セッションに表示名を保存
-        $_SESSION['view_name'] = $view_name;
+    //:idの値をセット
+    $stmt->bindValue(':id', $_GET['message_id'],PDO::PARAM_INT);
+
+    // SQLクエリの実行
+    $stmt->execute();
+
+    // 表示するデータを取得
+    $message_data = $stmt->fetch();
+
+    // 投稿データが取得できなときは管理ページに戻る
+    if(empty($message_data)){
+        header("Location: ./admin.php");
+        //header("Location: https://toy-poodle-four.net");
+        exit;
     }
 
-    // メセージの入力チェック
-    if( empty($message)){
-        $error_message[] = 'ひと言メッセージを入力してください。';
+} elseif( !empty($_POST['message_id'])){
+    //トランザクション開始
+    $pdo->beginTransaction();
+    try{
+        //SQL作成
+        $stmt =$pdo->prepare("DELETE FROM message WHERE id = :id");
+
+        //値をセット
+        $stmt->bindValue( ':id', $_POST['message_id'], PDO::PARAM_INT);
+
+        //SQLクエリの実行
+        $stmt->execute();
+
+        //コミット
+        $res = $pdo->commit();
+
+    } catch(Exception $e){
+        // エラーが発生した時はロールバック
+        $pdo-rollBack();
     }
-   
-    if(empty($error_message)){
 
-        /* 書き込み日時を取得 */
-        $current_date = date("Y-m-d H:i:s");
-
-        //トランザクション開始
-        $pdo->beginTransaction();
-        try{
-            //SQL作成
-            $stmt = $pdo->prepare("INSERT INTO message (view_name, message, post_date)
-            VALUES ( :view_name, :message, :current_date)");
-
-            //値をセット PDO::PARAM_STR クラス内の定数？を指定している　文字列
-            $stmt->bindParam( ':view_name', $view_name, PDO::PARAM_STR);
-		    $stmt->bindParam( ':message', $message, PDO::PARAM_STR);
-		    $stmt->bindParam( ':current_date', $current_date, PDO::PARAM_STR);
-
-            // SQLクエリの実行 
-            //$res = $stmt->execute();
-            $stmt->execute();
-            //コミット
-            $res = $pdo->commit();
-        }catch (Exception $e){
-            //エラーが発生したときはロールバック
-            $pdo->rollBack();
-        }
-
-        if( $res ){
-            //$success_message = 'メッセージを書き込みました。';  
-            $_SESSION['success_message'] = 'メッセージを書き込みました。';          
-        } else {
-            $error_message[] = '書き込みに失敗しました。';
-        }
-
-        //プリペアドステートメントを削除
-        $stmt = null;
-
-        header('Location: ./');
+    //削除に成功したら一覧に戻る
+    if( $res ){
+        header("Location: ./admin.php");
+       //header("Location: https://toy-poodle-four.net");
         exit;
     }
 }
-
-
-if( empty($error_message) ) {
-
-	// メッセージのデータを取得する
-	$sql = "SELECT view_name,message,post_date FROM message ORDER BY post_date DESC";
-
-    //SQLに変数を利用していないので、pdo->query で実行している
-	$message_array = $pdo->query($sql);
-
-    //var_dump($message_array);
-}
 //データベース接続を閉じる
+$stmt = null;
 $pdo = null;
-
 ?> 
 
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>ひと言掲示板</title>
+<title>ひと言掲示板 管理ページ (投稿の削除)</title>
 <style>
 
 /*------------------------------
@@ -334,6 +320,28 @@ hr {
 }
 
 
+
+.btn_cancel {
+	display: inline-block;
+	margin-right: 10px;
+	padding: 10px 20px;
+	color: #555;
+	font-size: 86%;
+	border-radius: 5px;
+	border: 1px solid #999;
+}
+.btn_cancel:hover {
+	color: #999;
+	border-color: #999;
+	text-decoration: none;
+}
+
+.text-confirm {
+  margin-bottom: 20px;
+  font-size: 86%;
+  line-height: 1.6em;
+}
+
 /*-----------------------------------
 掲示板エリア
 -----------------------------------*/
@@ -399,13 +407,10 @@ article.reply::before {
 </style>
 </head>
 <body>
-<h1>ひと言掲示板</h1>
+<h1>ひと言掲示板 管理ページ (投稿の編集)</h1>
 <!-- 書き込み成功のメッセージを表示する -->
-<?php if( empty($_POST['btn_submit'])&& !empty($_SESSION['suscess_message'])): ?>
-    <!-- $success_messageがから(null)出ないときに以下を表示する -->
-    <p class="success_message"><?php echo htmlspecialchars($_SESSION['success_message'],ENT_QUOTES,'UTF-8'); ?></p>
-        <?php unset($_SESSION['success_message']); ?>
-    <?php endif; ?>
+
+<!---- error_messageが空でなければ以下の処理が実行される------->
 <?php if(!empty($error_message)): ?>
     <ul class="error_message">
         <?php foreach($error_message as $value):?>
@@ -414,38 +419,20 @@ article.reply::before {
     </ul>
  <?php endif; ?>
 <!-- ここにメッセージの入力フォームを設置 -->
+<p class="text-confirm">以下の投稿を削除します。<br>よろしければ「削除」ボタンを押してください。</p>
 <form method="post">
     <div>
         <label for="view_name">表示名</lavel>
         <!-- $_SESSION['view_name'] が空でなければ、サニタイズし、echo文により出力する--->
-        <input id="view_name" type="text" name="view_name" value="<?php if( !empty($_SESSION['view_name']) ){ echo htmlspecialchars( $_SESSION['view_name'], ENT_QUOTES, 'UTF-8'); } ?>">
+        <input id="view_name" type="text" name="view_name" value="<?php if( !empty($message_data['view_name']) ){ echo $message_data['view_name']; } elseif( !empty($view_name)){ echo htmlspecialchars($view_name, ENT_QUOTES, 'UTF-8');} ?>" disabled>
     </div>
     <div>
         <label for="message">ひと言メッセージ</label>
-        <textarea id="message" name="message"></textarea>
+        <textarea id="message" name="message" disabled><?php if( !empty($message_data['message']) ){ echo $message_data['message']; } elseif( !empty($message)){ echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8');} ?></textarea>
     </div>
-    <input type="submit" name="btn_submit" value="書き込む">
+    <a class ="btn_cancel" href="admin.php">キャンセル</a>
+    <input type="submit" name="btn_submit" value="削除">
+    <input type="hidden" name="message_id" value="<?php if( !empty($message_data['id']) ){ echo $message_data['id']; } elseif( !empty($_POST['message_id'])){echo htmlspecialchars($_POST['message_id'], ENT_QUOTES,'UTF-8');} ?>">
 </form>
-<hr>
-<section>
-<!-- ここに投稿されたメッセージを表示 -->
-    <?php
-        //message_arrayが空(null)でないとき以下のコードが実行される
-        if(!empty($message_array)){
-            //message_arrayの各要素に対して、以下のコードを実行する
-            foreach($message_array as $value){?>
-
-                <article>
-                    <div class="info">
-                        <h2><?php echo htmlspecialchars($value['view_name'],ENT_QUOTES,'UTF-8'); ?></h2>
-                        <time><?php echo date('Y年m月d日H:i',strtotime($value['post_date'])); ?></time>
-                    </div>
-                    <p><?php echo nl2br(htmlspecialchars($value['message'],ENT_QUOTES,'UTF-8')); ?></p>
-                </article>
-                <?php
-            }
-        }
-    ?>
-</section>
 </body>
 </html>
